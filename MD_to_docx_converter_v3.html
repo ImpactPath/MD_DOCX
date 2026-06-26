@@ -188,22 +188,22 @@ body {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-const FONT='Malgun Gothic',FONT_CS='Lao UI',BLUE='1F4E79',LGRAY='F2F2F2';
-const PW=11906,PH=16838,MG=1418;
+const FONT='Times New Roman',FONT_EA='Malgun Gothic',FONT_CS='Times New Roman',BLUE='1F4E79',LGRAY='F8F9FA';
+const PW=11906,PH=16838,MG=1440;
 let mdText='',mdFilename='',docxBlob=null;
 const hyperlinkMap=new Map();let hyperlinkCounter=5;
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function stripEmoji(s){return s.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]+\s*/gu,'').trim();}
-function fontAttrs(){return `w:ascii="${FONT}" w:eastAsia="${FONT}" w:hAnsi="${FONT}" w:cs="${FONT_CS}"`;}
+function fontAttrs(){return `w:ascii="${FONT}" w:eastAsia="${FONT_EA}" w:hAnsi="${FONT}" w:cs="${FONT_CS}"`;}
 function hyperlinkId(url){if(!hyperlinkMap.has(url))hyperlinkMap.set(url,`rHyp${hyperlinkCounter++}`);return hyperlinkMap.get(url);}
 const LABEL_STYLES={'FACT':{bg:'1F4E79',fg:'FFFFFF'},'INTERPRETATION':{bg:'BF8F00',fg:'FFFFFF'},'CONFLICT':{bg:'C00000',fg:'FFFFFF'},'UNVERIFIED':{bg:'C00000',fg:'FFFFFF'},'UPDATED':{bg:'375623',fg:'FFFFFF'}};
 function badgeRun(label){const key=label.startsWith('DATED')?'DATED':label;const s=LABEL_STYLES[key]||{bg:'595959',fg:'FFFFFF'};return `<w:r><w:rPr><w:rFonts ${fontAttrs()}/><w:sz w:val="18"/><w:szCs w:val="18"/><w:b/><w:color w:val="${s.fg}"/><w:shd w:val="clear" w:color="auto" w:fill="${s.bg}"/></w:rPr><w:t xml:space="preserve"> [${esc(label)}] </w:t></w:r>`;}
 function run(text,bold,italic,color,sz){const size=sz||22;let rpr=`<w:rPr><w:rFonts ${fontAttrs()}/><w:sz w:val="${size}"/><w:szCs w:val="${size}"/>`;if(bold)rpr+='<w:b/>';if(italic)rpr+='<w:i/>';if(color)rpr+=`<w:color w:val="${color}"/>`;rpr+='</w:rPr>';return `<w:r>${rpr}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>`;}
 function parseInline(text){if(!text)return'';const TOKEN_RE=/\*{0,2}\[(FACT|INTERPRETATION|CONFLICT|UNVERIFIED|UPDATED|DATED:[^\]]*?)\]\*{0,2}|\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;const parts=[];let last=0,m;while((m=TOKEN_RE.exec(text))!==null){if(m.index>last)parts.push({type:'text',val:text.slice(last,m.index)});if(m[1]!==undefined)parts.push({type:'badge',val:m[1]});else parts.push({type:'link',label:m[2],url:m[3]});last=m.index+m[0].length;}if(last<text.length)parts.push({type:'text',val:text.slice(last)});if(!parts.length)return run(text,false,false,null);let out='';for(const p of parts){if(p.type==='badge'){out+=badgeRun(p.val);}else if(p.type==='link'){const rId=hyperlinkId(p.url);out+=`<w:hyperlink r:id="${rId}" w:history="1"><w:r><w:rPr><w:rStyle w:val="Hyperlink"/></w:rPr><w:t xml:space="preserve">${esc(p.label)}</w:t></w:r></w:hyperlink>`;}else{const re2=/\*\*(.+?)\*\*|\*(.+?)\*|([^*]+)/g;let m2;while((m2=re2.exec(p.val))!==null){if(!m2[0])break;if(m2[1]!==undefined)out+=run(m2[1],true,false,null);else if(m2[2]!==undefined)out+=run(m2[2],false,true,null);else if(m2[3]!==undefined)out+=run(m2[3],false,false,null);}}}return out||run(text,false,false,null);}
-function heading(text,level){const sizes={1:'32',2:'26',3:'24',4:'22'};const before={1:'0',2:'260',3:'200',4:'160'};const after={1:'0',2:'120',3:'80',4:'60'};const sz=sizes[level]||'22';if(level===1){const sep=text.indexOf(' | ');const title=sep>=0?text.slice(0,sep).trim():text.trim();const date=sep>=0?text.slice(sep+3).trim():null;const titleP=`<w:p><w:pPr><w:pStyle w:val="Heading1"/><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts ${fontAttrs()}/><w:b/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/><w:color w:val="${BLUE}"/></w:rPr><w:t>${esc(stripEmoji(title))}</w:t></w:r></w:p>`;if(!date)return titleP;const dateP=`<w:p><w:pPr><w:pStyle w:val="Heading1"/><w:jc w:val="right"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts ${fontAttrs()}/><w:b w:val="0"/><w:sz w:val="24"/><w:szCs w:val="24"/><w:color w:val="${BLUE}"/></w:rPr><w:t>${esc(date)}</w:t></w:r></w:p>`;return titleP+dateP;}const clean=stripEmoji(text);return `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/><w:spacing w:before="${before[level]}" w:after="${after[level]}"/></w:pPr><w:r><w:rPr><w:rFonts ${fontAttrs()}/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/><w:color w:val="${BLUE}"/></w:rPr><w:t>${esc(clean)}</w:t></w:r></w:p>`;}
+function heading(text,level){const sizes={1:'32',2:'24',3:'24',4:'22'};const before={1:'0',2:'360',3:'280',4:'200'};const after={1:'120',2:'200',3:'160',4:'100'};const sz=sizes[level]||'22';if(level===1){const sep=text.indexOf(' | ');const title=sep>=0?text.slice(0,sep).trim():text.trim();const date=sep>=0?text.slice(sep+3).trim():null;const titleP=`<w:p><w:pPr><w:pStyle w:val="Heading1"/><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts ${fontAttrs()}/><w:b/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/><w:color w:val="${BLUE}"/></w:rPr><w:t>${esc(stripEmoji(title))}</w:t></w:r></w:p>`;if(!date)return titleP+'<w:p/><w:p/>';const dateP=`<w:p><w:pPr><w:pStyle w:val="Heading1"/><w:jc w:val="right"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts ${fontAttrs()}/><w:b w:val="0"/><w:sz w:val="18"/><w:szCs w:val="18"/><w:color w:val="7F7F7F"/></w:rPr><w:t>${esc(date)}</w:t></w:r></w:p>`;return titleP+dateP+'<w:p/><w:p/>';}const clean=stripEmoji(text);return `<w:p><w:pPr><w:pStyle w:val="Heading${level}"/><w:spacing w:before="${before[level]}" w:after="${after[level]}"/></w:pPr><w:r><w:rPr><w:rFonts ${fontAttrs()}/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/><w:color w:val="${BLUE}"/></w:rPr><w:t>${esc(clean)}</w:t></w:r></w:p>`;}
 function blockquote(text,depth){const indent=360*depth;return `<w:p><w:pPr><w:ind w:left="${indent+360}"/><w:jc w:val="both"/><w:pBdr><w:left w:val="single" w:sz="12" w:space="5" w:color="3DAB8E"/></w:pBdr></w:pPr>${parseInline(text)}</w:p>`;}
-function tableRow(cells,isHeader,fill){const bg=isHeader?BLUE:(fill||'FFFFFF');const tc=isHeader?'FFFFFF':'000000';const colW=Math.floor(8640/Math.max(cells.length,1));const cellXml=cells.map(c=>`<w:tc><w:tcPr><w:tcW w:w="${colW}" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="${bg}"/><w:tcMar><w:top w:w="80" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr><w:p><w:pPr><w:jc w:val="both"/></w:pPr><w:r><w:rPr><w:rFonts ${fontAttrs()}/><w:sz w:val="20"/><w:szCs w:val="20"/>${isHeader?'<w:b/>':''}<w:color w:val="${tc}"/></w:rPr><w:t xml:space="preserve">${esc(c||'')}</w:t></w:r></w:p></w:tc>`).join('');return `<w:tr>${cellXml}</w:tr>`;}
-function flushTable(th,tb){if(!th.length&&!tb.length)return'';let t=`<w:tbl><w:tblPr><w:tblW w:w="8640" w:type="dxa"/><w:tblBorders>${['top','bottom','left','right','insideH','insideV'].map(s=>`<w:${s} w:val="single" w:sz="2" w:color="CCCCCC"/>`).join('')}</w:tblBorders></w:tblPr>`;if(th.length)t+=tableRow(th,true,null);tb.forEach((row,ri)=>{t+=tableRow(row,false,ri%2===0?'FFFFFF':LGRAY);});return t+`</w:tbl><w:p/>`;}
+function tableRow(cells,isHeader,fill){const bg=isHeader?BLUE:(fill||'FFFFFF');const tc=isHeader?'FFFFFF':'000000';const colW=Math.floor(9026/Math.max(cells.length,1));const cellXml=cells.map(c=>`<w:tc><w:tcPr><w:tcW w:w="${colW}" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="${bg}"/><w:tcMar><w:top w:w="80" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr><w:p><w:pPr><w:jc w:val="both"/><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts ${fontAttrs()}/><w:sz w:val="22"/><w:szCs w:val="22"/>${isHeader?'<w:b/>':''}<w:color w:val="${tc}"/></w:rPr><w:t xml:space="preserve">${esc(c||'')}</w:t></w:r></w:p></w:tc>`).join('');return `<w:tr>${cellXml}</w:tr>`;}
+function flushTable(th,tb){if(!th.length&&!tb.length)return'';let t=`<w:tbl><w:tblPr><w:tblW w:w="9026" w:type="dxa"/><w:tblBorders>${['top','bottom','left','right','insideH','insideV'].map(s=>`<w:${s} w:val="single" w:sz="4" w:color="CCCCCC"/>`).join('')}</w:tblBorders></w:tblPr>`;if(th.length)t+=tableRow(th,true,null);tb.forEach((row,ri)=>{t+=tableRow(row,false,'FFFFFF');});return t+`</w:tbl><w:p/>`;}
 // 동적 numbering — abstractNum + num 쌍을 섹션마다 독립 생성
 // Word는 같은 abstractNumId 공유시 번호를 이어가므로 둘 다 분리해야 함
 let _decimalGroups = []; // {abstractNumId, numId} 쌍 목록
@@ -271,7 +271,7 @@ function buildBodyXml(md){
   if(inTable)bodyXml+=flushTable(tableHeaders,tableBodyRows);
   return bodyXml;
 }
-async function buildDocx(md){const bodyXml=buildBodyXml(md);const HYPREL='http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink';const hyperlinkRels=Array.from(hyperlinkMap.entries()).map(([url,rId])=>`<Relationship Id="${rId}" Type="${HYPREL}" Target="${esc(url)}" TargetMode="External"/>`).join('');const footerPage=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:pStyle w:val="Footer"/><w:framePr w:wrap="none" w:vAnchor="text" w:hAnchor="margin" w:xAlign="center" w:y="1"/></w:pPr><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>`;const footerEmpty=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:pStyle w:val="Footer"/></w:pPr></w:p></w:ftr>`;const docXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${bodyXml}<w:sectPr><w:footerReference w:type="default" r:id="rId3"/><w:footerReference w:type="even" r:id="rId4"/><w:pgSz w:w="${PW}" w:h="${PH}"/><w:pgMar w:top="${MG}" w:right="${MG}" w:bottom="${MG}" w:left="${MG}" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr></w:body></w:document>`;const stylesXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts ${fontAttrs()}/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:styleId="Normal"><w:name w:val="Normal"/><w:pPr><w:jc w:val="both"/><w:spacing w:line="280" w:lineRule="auto"/></w:pPr><w:rPr><w:rFonts ${fontAttrs()}/><w:sz w:val="22"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/></w:pPr><w:rPr><w:rFonts ${fontAttrs()}/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr></w:style>${[1,2,3,4].map(n=>{const sz=['32','26','24','22'][n-1];const bef=['0','260','200','160'][n-1];const aft=['0','120','80','60'][n-1];const bold=n===1?'':'<w:b/>';return `<w:style w:type="paragraph" w:styleId="Heading${n}"><w:name w:val="heading ${n}"/><w:basedOn w:val="Normal"/><w:pPr><w:outlineLvl w:val="${n-1}"/><w:spacing w:before="${bef}" w:after="${aft}"/></w:pPr><w:rPr><w:rFonts ${fontAttrs()}/>${bold}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/><w:color w:val="${BLUE}"/></w:rPr></w:style>`;}).join('')}<w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style></w:styles>`;// 동적 abstractNum + num 쌍을 numbering.xml에 추가
+async function buildDocx(md){const bodyXml=buildBodyXml(md);const HYPREL='http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink';const hyperlinkRels=Array.from(hyperlinkMap.entries()).map(([url,rId])=>`<Relationship Id="${rId}" Type="${HYPREL}" Target="${esc(url)}" TargetMode="External"/>`).join('');const footerPage=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:pStyle w:val="Footer"/><w:framePr w:wrap="none" w:vAnchor="text" w:hAnchor="margin" w:xAlign="center" w:y="1"/></w:pPr><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>`;const footerEmpty=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:pStyle w:val="Footer"/></w:pPr></w:p></w:ftr>`;const docXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${bodyXml}<w:sectPr><w:footerReference w:type="default" r:id="rId3"/><w:footerReference w:type="even" r:id="rId4"/><w:pgSz w:w="${PW}" w:h="${PH}"/><w:pgMar w:top="${MG}" w:right="${MG}" w:bottom="${MG}" w:left="${MG}" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr></w:body></w:document>`;const stylesXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts ${fontAttrs()}/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:styleId="Normal"><w:name w:val="Normal"/><w:pPr><w:jc w:val="both"/><w:spacing w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr><w:rFonts ${fontAttrs()}/><w:sz w:val="22"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/></w:pPr><w:rPr><w:rFonts ${fontAttrs()}/><w:sz w:val="18"/><w:szCs w:val="18"/><w:color w:val="7F7F7F"/></w:rPr></w:style>${[1,2,3,4].map(n=>{const sz=['32','24','24','22'][n-1];const bef=['0','360','280','200'][n-1];const aft=['120','200','160','100'][n-1];const bold=n===1?'':'<w:b/>';return `<w:style w:type="paragraph" w:styleId="Heading${n}"><w:name w:val="heading ${n}"/><w:basedOn w:val="Normal"/><w:pPr><w:outlineLvl w:val="${n-1}"/><w:spacing w:before="${bef}" w:after="${aft}"/></w:pPr><w:rPr><w:rFonts ${fontAttrs()}/>${bold}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/><w:color w:val="${BLUE}"/></w:rPr></w:style>`;}).join('')}<w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style></w:styles>`;// 동적 abstractNum + num 쌍을 numbering.xml에 추가
 const dynamicAbstracts = _decimalGroups.map(g =>
   `<w:abstractNum w:abstractNumId="${g.abstractNumId}"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="426" w:hanging="284"/></w:pPr></w:lvl></w:abstractNum>`
 ).join('');
@@ -301,16 +301,46 @@ dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-ove
 dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
 dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');loadFile(e.dataTransfer.files[0]);});
 async function convertToDocx(){if(!mdText)return;setStatus('Converting...','info');showProgress(true);document.getElementById('btn-convert').disabled=true;try{docxBlob=await buildDocx(mdText);showProgress(false);setStatus('✓ Conversion complete. Download your file using the button below.','success');document.getElementById('btn-download').disabled=false;}catch(e){showProgress(false);setStatus('Conversion failed: '+e.message,'error');document.getElementById('btn-convert').disabled=false;}}
-// ── 다운로드 (브라우저 기본 다운로드 폴더로 직접 저장) ──────────────────────
+// ── 저장 경로 지정 (showSaveFilePicker) ──────────────────────────────────────
+// _pickerHandle : 사용자가 한 번 선택한 디렉터리 핸들을 캐싱
+let _pickerHandle = null;
+
 async function downloadDocx() {
   if (!docxBlob) return;
   const suggestedName = mdFilename.replace(/\.(md|txt)$/i, '.docx');
-  const url = URL.createObjectURL(docxBlob);
-  const a = document.createElement('a');
-  a.href = url; a.download = suggestedName;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
-  return suggestedName;
+
+  // showSaveFilePicker 지원 여부 확인
+  if (typeof window.showSaveFilePicker !== 'function') {
+    // 미지원 브라우저 → 기존 방식 fallback
+    const url = URL.createObjectURL(docxBlob);
+    const a = document.createElement('a');
+    a.href = url; a.download = suggestedName;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    return 'fallback';
+  }
+
+  try {
+    const fileHandle = await window.showSaveFilePicker({
+      suggestedName,
+      startIn: _pickerHandle || 'downloads',   // 이전 선택 폴더 기억
+      types: [{
+        description: 'Word Document',
+        accept: {
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+        }
+      }]
+    });
+    // 다음 호출을 위해 폴더 핸들 캐싱
+    try { _pickerHandle = await fileHandle.getParent(); } catch(e) {}
+    const writable = await fileHandle.createWritable();
+    await writable.write(docxBlob);
+    await writable.close();
+    return fileHandle.name;
+  } catch (e) {
+    if (e.name === 'AbortError') return 'cancelled';
+    throw e;
+  }
 }
 
 window.loadMarkdown=function(text,filename){mdText=text;mdFilename=filename||'document.md';document.getElementById('filename-label').textContent=mdFilename;document.getElementById('filename-tag').style.display='inline-flex';document.getElementById('btn-convert').disabled=false;document.getElementById('status-box').style.display='none';docxBlob=null;document.getElementById('btn-download').disabled=true;return'loaded: '+mdFilename;};
